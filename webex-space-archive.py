@@ -23,9 +23,10 @@ import sys
 import os
 import shutil  # for file-download with requests
 import math    # for converting bytes to KB/MB/GB
-import string
 from pathlib import Path
 import configparser
+import unicodedata
+
 try:
     assert sys.version_info[0:2] >= (3, 9)
 except:
@@ -885,9 +886,15 @@ def get_messages(mytoken, myroom, myMaxMessages):
 # ----------------------------------------------------------------------------------------
 # FUNCTION to turn Space name into a valid filename string
 def format_filename(s):
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    filename = ''.join(c for c in s if c in valid_chars)
-    return filename.strip()
+    # Remove accents: normalize the string to NFKD form and remove diacritics
+    normalized = unicodedata.normalize('NFKD', s)
+    no_accents = ''.join([c for c in normalized if unicodedata.category(c) != 'Mn'])
+
+    # Remove invalid chars
+    filename = re.sub('[^-_.() A-Za-z0-9]', '', no_accents)
+
+    # Remove extra spaces
+    return re.sub(' +', ' ', filename).strip()
 
 
 # ----------------------------------------------------------------------------------------
