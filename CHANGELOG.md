@@ -8,6 +8,18 @@ All notable changes to this project will be documented in this file.
 > being committed to GitHub.
 
 
+## [v35] - 2026-05-18
+
+### Fixed
+
+- Handle accented characters in space name when writing output directory
+- Remove extra spaces in directory name
+
+### Changed
+
+- Code cleanup
+
+
 ## [v34] - 2026-05-08
 
 ### Added
