@@ -23,7 +23,6 @@ import sys
 import os
 import shutil  # for file-download with requests
 import math    # for converting bytes to KB/MB/GB
-from pathlib import Path
 import configparser
 import unicodedata
 
