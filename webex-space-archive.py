@@ -28,13 +28,17 @@ import unicodedata
 
 try:
     assert sys.version_info[0:2] >= (3, 9)
-except:
-    print("\n\n **ERROR** Minimum Python version is 3.9. Please visit this site to\n           install a newer Python version: https://www.python.org/downloads/\n           Or in the code, remove line 33 'exit()' to continue with an untested Python version.\n\n")
-    exit()
+except AssertionError:
+    print("\n\n **ERROR** Minimum Python version is 3.9. Please visit this site to\n"
+          "install a newer Python version: https://www.python.org/downloads/\n"
+          "Or in the code, remove line 33 'exit()' to continue with an untested Python version.\n\n")
+    exit(1)
 try:
+    # noinspection PyUnusedImports
     import requests
 except ImportError:
-    print("\n\n **ERROR** Missing library 'requests'. Please visit the following site to\n           install 'requests': http://docs.python-requests.org/en/master/user/install/ \n\n")
+    print("\n\n **ERROR** Missing library 'requests'. Please visit the following site to\n"
+          "install 'requests': https://docs.python-requests.org/en/master/user/install/ \n\n")
     exit()
 
 
@@ -141,8 +145,13 @@ if os.path.isfile("./" + configFile):
                     try:
                         test_date = my_date[7]  # dummy variable: if the date has less than 8 characters it will generate an error
                         datetime.datetime.strptime(my_date, maxmsg_format).date()
-                    except:
-                        date_fmt = maxmsg_format.replace("%d", "dd").replace("%b", "mmm").replace("%m", "mm").replace("%y", "yy").replace("%Y", "yyyy")
+                    except (IndexError, ValueError):
+                        date_fmt = (maxmsg_format
+                                    .replace("%d", "dd")
+                                    .replace("%b", "mmm")
+                                    .replace("%m", "mm")
+                                    .replace("%y", "yy")
+                                    .replace("%Y", "yyyy"))
                         print(f" ** ERROR reading the from or to date: '{my_date}'")
                         print(f"          use this exact format: {date_fmt}-{date_fmt} or {date_fmt}- \n\n")
                         exit()
@@ -274,7 +283,7 @@ else:
     exit()
 
 # ----------------------------------------------------------------------------------------
-#   CHECK if the configuration VALUES are valid. If not, print error messsage and exit
+#   CHECK if the configuration VALUES are valid. If not, print error message and exit
 # ----------------------------------------------------------------------------------------
 goExitError = "\n\n ------------------------------------------------------------------"
 if downloadFiles not in ['no', 'info', 'images', 'files', 'image', 'file']:
@@ -319,6 +328,8 @@ if mySearch == "":  # NOT searching for space name
     if blurring != "":
         blur_msg = "Blur: yes"
     print(f"    download:{downloadFiles}  Max-msg:{maxMessageString}  Avatars:{userAvatar}  DST:{dst_string} {blur_msg}")
+else:
+    maxMessageString = 'Unspecified'
 if len(goExitError) > 76:   # length goExitError = 66. If error: it is > 76 characters --> print errors + exit
     print(f"{goExitError}\n ------------------------------------------------------------------\n\n")
     exit()
@@ -709,7 +720,7 @@ def convertDate(inputdate, returnFormat):
     if dst_start == "":
         dateMSGnew = inputdate + datetime.timedelta(hours=offset, minutes=0)
     else:  # ---------- DST CONFIGURED --------------------
-        if inputdate > dst_table[inputdate.year][0] and inputdate < dst_table[inputdate.year][1]:  # = SUMMER
+        if dst_table[inputdate.year][0] < inputdate < dst_table[inputdate.year][1]:  # = SUMMER
             dateMSGnew = inputdate + datetime.timedelta(hours=utc_offset['summer'], minutes=0)
         else:
             dateMSGnew = inputdate + datetime.timedelta(hours=utc_offset['winter'], minutes=0)  # = WINTER
@@ -748,7 +759,7 @@ def timedifferencedays(msgdate):
 # FUNCTION finds URLs in message text + convert to a hyperlink. Used in HTML generation.
 def convertURL(inputtext):
     outputtext = inputtext
-    urls = re.findall(r'(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&!:/~+#-]*[\w@?^=%&/~+#-])?', inputtext)
+    urls = re.findall(r'(http|ftp|https)://([\w_-]+(?:\.[\w_-]+)+)([\w.,@?^=%&!:/~+#-]*[\w@?^=%&/~+#-])?', inputtext)
     urls = set(urls)
     if len(urls) > 0:
         for replaceThisURL in urls:
@@ -760,11 +771,13 @@ def convertURL(inputtext):
 # ----------------------------------------------------------------------------------------
 # FUNCTION to convert all Markdown URL's [linktext](http://link.com) to clickable links
 def convertMarkdownURL(msgtext, whichreplace):
+    if whichreplace == 1:
+        regex = r"alt=(.*?)event\);\""
+    elif whichreplace == 2:
+        regex = r"\ onClick=(.*?)event\)\;\""
+    else:
+        raise ValueError
     try:
-        if whichreplace == 1:
-            regex = r"alt=(.*?)event\);\""
-        if whichreplace == 2:
-            regex = r"\ onClick=(.*?)event\)\;\""
         matches = re.finditer(regex, msgtext, re.MULTILINE)
         matchDict = dict()  # create dictionary with match details so I can _reverse_ replace
         for matchNum, match in enumerate(matches, start=1):
@@ -772,8 +785,7 @@ def convertMarkdownURL(msgtext, whichreplace):
         for i in sorted(matchDict.keys(), reverse=True):
             msgtext = msgtext[0:matchDict[i][0]] + " target='_blank'" + msgtext[matchDict[i][1]:]
     except Exception as e:
-        test = msgtext
-        print(f" **ERROR** replacing markdown URL's in text: {msgtext}")
+        print(f" **ERROR** replacing markdown URL's in text: {e}")
     return msgtext
 
 
@@ -797,13 +809,15 @@ def get_memberships(mytoken, myroom, maxmembers):
                 print(f"          Number of space members: {len(resultjson)}")
                 break
         except requests.exceptions.RequestException as e:  # For problems like SSLError/InvalidURL
-            if e.status_code == 429:
+            r = e.response
+            if r is not None and r.status_code == 429:
                 print("          Code 429, waiting for : " + str(sleepTime) + " seconds: ", end='', flush=True)
                 for x in range(0, sleepTime):
                     time.sleep(1)
                     print(".", end='', flush=True)  # Progress indicator
             else:
-                print(f" *** ERROR *** getting space members. Error message: {result.status_code}\n {e}")
+                print(" *** ERROR *** getting space members."
+                      f"Error message: {r.status_code if r is not None else None}\n {e}")
                 break
         except Exception as e:
             print(f" *** ERROR *** getting space members. Error message: {e}")
@@ -853,7 +867,6 @@ def get_messages(mytoken, myroom, myMaxMessages):
             else:
                 resultjsonmessages = resultjsonmessages + messages
                 if msgMaxAge != 0:
-                    msgAge = timedifferencedays(messages[-1]["created"])
                     lastMsgLocation = next((index for (index, d) in enumerate(resultjsonmessages) if timedifferencedays(d["created"]) > msgMaxAge), 99999)
                     maxTotalMessages = lastMsgLocation
                 print(f" FINISHED total messages: {messageCount}")
@@ -878,7 +891,7 @@ def get_messages(mytoken, myroom, myMaxMessages):
 
     if maxTotalMessages == 0:
         print(" **ERROR** there are no messages. Please check your maxMessages setting and try again.\n\n")
-        exit()
+        exit(1)
     return resultjsonmessages[0:maxTotalMessages]
 
 
@@ -903,26 +916,26 @@ def get_roomname(mytoken, myroom):
     returndata = "webex-space-archive"
     try:
         result = requests.get('https://webexapis.com/v1/rooms/' + myroom, headers=headers)
-        if result.status_code == 401:   # WRONG ACCESS TOKEN
+        result.raise_for_status()
+        returndata = result.json()['title']
+    except requests.exceptions.HTTPError as e:
+        r = e.response
+        if r.status_code == 401:   # WRONG ACCESS TOKEN
             print("__________________________ ERROR ________________________")
             print("   Please check your Access Token in the .ini file.")
             print("       Note that your Access Token is only valid for 12 hours.")
             print("       Go here to get a new token:")
             print("       https://developer.webex.com/docs/api/getting-started")
             print("_________________________ STOPPED _______________________\n\n\n")
-            exit()
-        elif result.status_code == 404:  # and "resource could not be found" in str(result.text) --> WRONG SPACE ID
-            print("       **ERROR** Check if the Space ID in your .ini file is correct.\n         Find the Space ID? Run this script with the space name as parameter!")
+        elif r.status_code == 404:  # and "resource could not be found" in str(result.text) --> WRONG SPACE ID
+            print("       **ERROR** Check if the Space ID in your .ini file is correct.")
+            print("         To find the Space ID, run this script with the space name as parameter!")
             print("_________________________ STOPPED _______________________\n\n\n")
-            exit()
-        elif result.status_code != 200:
-            print(f"       **ERROR** Unknown Error occurred. status code: {result.status_code}\n       Info: \n {result.text}\n\n")
-            exit()
-        elif result.status_code == 200:
-            returndata = result.json()['title']
-    except Exception as e:
-        print(f"       **ERROR** #1 get_roomname API call status_code: {result.status_code}\n status_text: {result.text}\n Exception {e}\n\n")
-        exit()
+        else:
+            print(f"       **ERROR** Unknown Error occurred. status code: {r.status_code}\n"
+                  f"         Info: {r.text}\n"
+                  f"         Exception {e}\n\n")
+        exit(1)
     return str(returndata.strip())
 
 
@@ -933,9 +946,14 @@ def get_me(mytoken):
     try:
         header = {'Authorization': "Bearer " + mytoken, 'content-type': 'application/json; charset=utf-8'}
         result = requests.get(url='https://webexapis.com/v1/people/me', headers=header)
-    except Exception as e:
-        print(f"       **ERROR** get_me API call status_code: {result.status_code}\n status_text: {result.text}\n Exception {e}\n\n")
-        exit()
+    except requests.exceptions.RequestException as e:
+        print("       **ERROR** get_me API call", end='')
+        r = e.response
+        if r is None:
+            print(f"\n         Exception {e}\n\n")
+        else:
+            print(f" Status code: {r.status_code}\n         Message: {r.text}\n\n\n")
+        exit(1)
     return result.json()
 
 
@@ -976,7 +994,7 @@ def process_Files(fileData, fileDate):
             # Files with no name or just spaces: fix so they can still be downloaded:
             if len(filename) < 1 or filename.isspace():
                 filename = "unknown-filename"
-        except Exception as e:
+        except Exception:
             filename = "error-getting-filename"
             myErrorList.append("def process_Files Header 'content-disposition' error for url: " + url)
 
@@ -1091,6 +1109,7 @@ def download_avatars(avatardictionary):  # dictionary:  userId, avatarUrl
         if r.status_code == 200:
             r.raw.decode_content = True
             with open(myOutputFolder + "/avatars/" + filename, 'wb') as f:
+                # noinspection PyTypeChecker
                 shutil.copyfileobj(r.raw, f)
         else:
             print(f"\n**ERROR** download_avatars RESULT: {r.status_code}\n")
@@ -1171,7 +1190,8 @@ def get_searchspaces(mytoken, searchstring):
                 print(f" Total number of spaces: {len(resultjson)}")
                 break
         except requests.exceptions.RequestException as e:  # A serious problem, like an SSLError or InvalidURL
-            if e.status_code == 429:
+            r = e.response
+            if r is not None and r.status_code == 429:
                 print("          Code 429, waiting for : " + str(sleepTime) + " seconds: ", end='', flush=True)
                 for x in range(0, sleepTime):
                     time.sleep(1)
@@ -1195,7 +1215,6 @@ def get_searchspaces(mytoken, searchstring):
 def create_threading_order_table(WebexMessages):
     msgOrderTable = dict()
     msgOrderIndex = 1.000
-    missing_parent_msg = {}
     missing_parent_msglist = list()
     count_hasparent = 0
     count_hasnoparent = 0
@@ -1377,6 +1396,7 @@ utc_offset['winter'] = get_utc_offset(datetime.datetime(2021, 1, 1, 1, 1, 1, 1))
 utc_offset['summer'] = get_utc_offset(datetime.datetime(2021, 7, 7, 7, 7, 7, 7))  # just a date in the summer
 # Below: dst START date AFTER dst STOP date (Australia): swap summer winter offsets
 if dst_start != "":
+    # noinspection PyUnboundLocalVariable
     if dst_table[2021][0] > dst_table[2021][1]:
         utc_offset['summer'], utc_offset['winter'] = utc_offset['winter'], utc_offset['summer']
 
@@ -1406,9 +1426,8 @@ try:
 except Exception as e:
     print(" **ERROR** STEP #2: getting Messages")
     print(f"             Error message: {e}\n\n")
-    exit()
+    exit(1)
 if len(WebexMessages) == 0:  # for spaces that have no messages (anymore)
-    print(" **ERROR** STEP #2: getting Messages")
     print(f"             No messages found\n\n")
     exit()
 stopTimer("get messages", 0)
@@ -1440,6 +1459,7 @@ try:
 except Exception as e:
     print(" **ERROR** STEP #3: getting Memberlist (email address)")
     print(f"             Error message: {e}")
+    myMembers = []
 stopTimer("get memberlist", 0)
 
 
@@ -1467,10 +1487,10 @@ stopTimer("create folders", 0)
 
 
 # =====  GET MEMBER AVATARS ====================================================
-startTimer()
+userAvatarDict = dict()  # --> userAvatarDict[your@email.com] = "https://webex_message_avatarurl"
 if userAvatar == "link" or userAvatar == "download":
+    startTimer()
     print(" #4b--- MEMBER Avatars: collect avatar Data (" + str(len(uniqueUserIds)) + ")  ", end='', flush=True)
-    userAvatarDict = dict()  # --> userAvatarDict[your@email.com] = "https://webex_message_avatarurl"
     x = 0
     y = len(uniqueUserIds)
     if 50 > y:
@@ -1489,14 +1509,13 @@ if userAvatar == "link" or userAvatar == "download":
             except:
                 print('', end='')
     print(".", flush=False)  # Progress Indicator
-stopTimer("get avatars", 0)
+    stopTimer("get avatars", 0)
 
-startTimer()
-if userAvatar == "link" or userAvatar == "download":
+    startTimer()
     print(" #4c--- MEMBER Avatars: downloading avatar files for " + str(len(userAvatarDict)) + " members  ")  #, end='', flush=True)
     if userAvatar == "download":
         download_avatars(userAvatarDict)
-stopTimer("download avatars", 0)
+    stopTimer("download avatars", 0)
 
 
 # =====  GET MY DETAILS ========================================================
@@ -1508,7 +1527,12 @@ try:
     myDomain = myEmail.split("@")[1]
     print(f" #5 --- Get my details: {myEmail}")
 except Exception as e:
-    print(f"\n #5 --- Get my details: **ERROR** : {e}\n\n myOwnDetails data retrieved: \n{myOwnDetails}")
+    print(f"\n #5 --- Get my details: **ERROR** : {e}\n")
+    try:
+        # noinspection PyUnboundLocalVariable
+        print(f"\n myOwnDetails data retrieved: \n{myOwnDetails}")
+    except NameError: pass
+    exit(1)
 stopTimer("get my details", 0)
 
 
@@ -1669,9 +1693,9 @@ for index, key in enumerate(sortedMsgOrderTable):
         # empty text without mentions or attached images/files: SKIP
         print("_EMPTYmessage_")
         continue
+    data_email = str(msg['personEmail'])
+    data_userid = str(msg['personId'])
     try:  # Put email & name in variable
-        data_email = str(msg['personEmail'])
-        data_userid = str(msg['personId'])
         data_name = myMemberList[msg['personEmail']]
     except:
         data_name = data_email
@@ -1698,7 +1722,7 @@ for index, key in enumerate(sortedMsgOrderTable):
         htmldata += "<div class='css_message'>"
 
     # ====== AVATAR: + msg header: display or not
-    if (data_email != previousEmail) or (data_email == previousEmail and timedifference(msg["created"], previousMsgCreated) > 60) or (data_msg_was_edited):
+    if (data_email != previousEmail) or (data_email == previousEmail and timedifference(msg["created"], previousMsgCreated) > 60) or data_msg_was_edited:
         if userAvatar == "link" and data_userid in userAvatarDict:
             htmldata += f"<img src='{userAvatarDict[data_userid]}' class='avatarCircle'  width='36px' height='36px'/>"
         elif userAvatar == "download" and data_userid in userAvatarDict:
@@ -1750,11 +1774,11 @@ for index, key in enumerate(sortedMsgOrderTable):
         except:
             print(" **ERROR** processing mentions, don't worry, I will continue")
     # check if msg is a card. If yes: add "cannot display" message
+    is_card = False
     try:
         if "contentType" in msg["attachments"][0]:
             is_card = True
-    except:
-        is_card = False
+    except: pass
     if is_card:
         data_text = "<span class='card_class'>&nbsp;<span style='color:red'>Card</span>&nbsp; content cannot be displayed in this archive&nbsp;</span>&nbsp;  " + data_text
     htmldata += "<div class='css_messagetext'>" + data_text
