@@ -1,6 +1,8 @@
-                           CISCO SAMPLE CODE LICENSE
-                                  Version 1.1
-                Copyright (c) 2020 Cisco and/or its affiliates
+# Cisco Sample Code License
+
+   Version 1.1
+
+   Copyright (c) 2020 Cisco and/or its affiliates
 
    These terms govern this Cisco Systems, Inc. ("Cisco"), example or demo
    source code and its associated documentation (together, the "Sample
