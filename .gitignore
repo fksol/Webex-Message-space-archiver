@@ -7,3 +7,8 @@
 # Files and Directories created by the archive script
 /webex-space-archive-ALL.sh
 /*/
+!/.github/
+
+# PyInstaller build output
+/build/
+/dist/

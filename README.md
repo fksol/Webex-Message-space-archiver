@@ -9,6 +9,7 @@ Many thanks for the kinds words received from the users and the feedback they ha
 
 * [Features](#features)
 * [Requirements](#requirements)
+* [Browser GUI](#browser-gui)
 * [Start](#start)
 * [Configure](#configuration)
 * [Release notes](#release-notes)
@@ -84,6 +85,40 @@ Example HTML file of an archived Webex space:
 * When **printing** the generated HTML file in Firefox: 
   File, Print, check "print background colors and images", then print or save to PDF
 
+
+## Browser GUI
+
+Prefer a form over the command line? Run:
+
+```
+python3 webgui.py
+```
+
+This starts a small local web server (stdlib only, no extra dependencies) and opens
+`http://127.0.0.1:8877/` in your browser. From there you can paste your token, search
+for a space, tweak the archive settings, and run the archive — with live log output and
+a link to open the finished HTML file (or download it as a .zip). Each run happens in
+its own throwaway folder under `webgui_runs/`, so it never touches your existing
+`webexspacearchive-config.ini`.
+
+### Windows executable
+
+To get a standalone `.exe` (no Python install needed on the target machine), build it
+with [PyInstaller](https://pyinstaller.org/) using the included `webgui.spec`:
+
+```
+pip install -r requirements.txt pyinstaller
+pyinstaller webgui.spec
+```
+
+The result is `dist/Webex-Space-Archiver-GUI.exe` — a single file bundling the GUI and
+the archive script together. Double-clicking it starts the local server and opens your
+browser; closing the console window stops it. This must be built *on Windows*
+(PyInstaller doesn't cross-compile), so the repo also ships a GitHub Actions workflow
+(`.github/workflows/build-windows-gui.yml`) that builds it automatically on a
+`windows-latest` runner — trigger it manually from the Actions tab, or push a `v*` tag to
+also attach the `.exe` to a GitHub release. Note this only runs on a repo where you have
+Actions enabled (e.g. your own fork), not on someone else's read-only clone.
 
 ## Start
 
