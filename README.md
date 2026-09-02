@@ -116,8 +116,9 @@ the archive script together. Double-clicking it starts the local server and open
 browser; closing the console window stops it. This must be built *on Windows*
 (PyInstaller doesn't cross-compile), so the repo also ships a GitHub Actions workflow
 (`.github/workflows/build-windows-gui.yml`) that builds it automatically on a
-`windows-latest` runner — trigger it manually from the Actions tab, or push a `v*` tag to
-also attach the `.exe` to a GitHub release. Note this only runs on a repo where you have
+`windows-latest` runner — trigger it manually from the Actions tab, or push a `gui-v*` tag
+(e.g. `gui-v1`) to also attach the `.exe` to a GitHub release. That tag namespace is kept
+separate from the tool's own `vNN` release tags. Note this only runs on a repo where you have
 Actions enabled (e.g. your own fork), not on someone else's read-only clone.
 
 ## Start
